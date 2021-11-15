@@ -1,0 +1,21 @@
+{
+  "name": "investments-log-server",
+  "version": "1.0.0",
+  "description": "the backend of investments-logs app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Silviu Dinu",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.24.0",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "helmet": "^4.6.0",
+    "lodash": "^4.17.21",
+    "moment": "^2.29.1",
+    "monk": "^7.3.4",
+    "morgan": "^1.10.0"
+  }
+}
