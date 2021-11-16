@@ -1,13 +1,10 @@
-const path = require('path');
 const express = require('express');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const cors = require('cors');
 const monk = require('monk');
-const csp = require('helmet-csp');
 const bodyParser = require('body-parser');
 const { nanoid } = require('nanoid');
-const exp = require('constants');
 
 const app = express();
 
