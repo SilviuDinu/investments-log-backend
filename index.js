@@ -84,13 +84,38 @@ app.post('/auth', (req, res) => {
 app.post('/newRecord', async (req, res, next) => {
   const authToken = req.headers.authorization;
   if (authToken !== token || !isLoggedIn) {
-    console.log('authToken = ', authToken, 'token = ', token);
     res.status(401).send({ error: 'Unauthorized' });
   }
   try {
     const obj = req.body;
     const created = await investments.insert(obj);
-    res.status(200).json({ ...created, message: 'success' });
+    if (obj._id) {
+      delete obj._id;
+    }
+    if (created) {
+      res.status(200).json({ ...obj, message: 'success' });
+    }
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+});
+
+app.get('/allRecords', async (req, res, next) => {
+  const authToken = req.headers.authorization;
+  if (authToken !== token || !isLoggedIn) {
+    res.status(401).send({ error: 'Unauthorized' });
+  }
+  try {
+    const records = await investments.find();
+    if (records) {
+      records.forEach((element) => {
+        if (element._id) {
+          delete element._id;
+        }
+      });
+      res.status(200).json({ ...records, message: 'success' });
+    }
   } catch (error) {
     console.log(error);
     next(error);
