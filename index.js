@@ -14,10 +14,9 @@ app.use(bodyParser.json());
 
 require('dotenv').config({ path: '.env' });
 
-const db = monk(process.env.MONGODB_URI || '/');
+const db = monk(process.env.MONGODB_URI);
 
-const urls = db.get('investments');
-urls.createIndex({ slug: 1 }, { unique: true });
+const investments = db.get('investments');
 
 app.enable('trust proxy');
 
@@ -53,7 +52,6 @@ app.use(
 app.use(morgan('tiny'));
 app.use(cors());
 app.use(express.json());
-app.use(express.static('./public'));
 
 let isLoggedIn = false;
 let token;
@@ -90,7 +88,9 @@ app.post('/newRecord', async (req, res, next) => {
     res.status(401).send({ error: 'Unauthorized' });
   }
   try {
-    res.status(200).json({ message: "It's working" });
+    const obj = req.body;
+    const created = await investments.insert(obj);
+    res.status(200).json({ ...created, message: 'success' });
   } catch (error) {
     console.log(error);
     next(error);
