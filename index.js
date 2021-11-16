@@ -7,6 +7,7 @@ const monk = require('monk');
 const csp = require('helmet-csp');
 const bodyParser = require('body-parser');
 const { nanoid } = require('nanoid');
+const exp = require('constants');
 
 const app = express();
 
@@ -85,6 +86,7 @@ app.post('/newRecord', async (req, res, next) => {
   const authToken = req.headers.authorization;
   if (authToken !== token || !isLoggedIn) {
     res.status(401).send({ error: 'Unauthorized' });
+    return;
   }
   try {
     const obj = req.body;
@@ -101,26 +103,161 @@ app.post('/newRecord', async (req, res, next) => {
   }
 });
 
-app.get('/allRecords', async (req, res, next) => {
+app.get('/records', async (req, res, next) => {
   const authToken = req.headers.authorization;
   if (authToken !== token || !isLoggedIn) {
     res.status(401).send({ error: 'Unauthorized' });
+    return;
   }
   try {
-    const records = await investments.find();
+    const raw = await investments.find();
+    const [records, expenses] = buildAllData(raw);
     if (records) {
-      records.forEach((element) => {
-        if (element._id) {
-          delete element._id;
-        }
-      });
-      res.status(200).json({ ...records, message: 'success' });
+      res.status(200).json({ records, expenses, message: 'success' });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/records/:asset', async (req, res, next) => {
+  const authToken = req.headers.authorization;
+  if (authToken !== token || !isLoggedIn) {
+    res.status(401).send({ error: 'Unauthorized' });
+    return;
+  }
+  try {
+    const { asset } = req.params;
+    const raw = await investments.find({ asset });
+    const records = buildAssetsResponse(raw);
+    // console.log(records);
+    if (records) {
+      res.status(200).json({ ...records, asset, message: 'success' });
     }
   } catch (error) {
     console.log(error);
     next(error);
   }
 });
+
+app.get('/records-summary', async (req, res, next) => {
+  const authToken = req.headers.authorization;
+  if (authToken !== token || !isLoggedIn) {
+    res.status(401).send({ error: 'Unauthorized' });
+    return;
+  }
+  try {
+    const raw = await investments.find();
+    const { records, expenses, assets } = buildAllData(raw);
+    const summary = assets.map((asset) => {
+      const mostRecent = records
+        .filter((record) => record.asset === asset)
+        .reduce((a, b) => {
+          return new Date(a.date) > new Date(b.date) ? a : b;
+        });
+      return {
+        asset,
+        lastInvested: mostRecent.formattedDate,
+        date: mostRecent.date,
+        expenses: expenses[mostRecent.asset.toLowerCase()],
+      };
+    });
+
+    if (records) {
+      res.status(200).json({
+        records,
+        summary,
+        expenses,
+        message: 'success',
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/expenses/:asset', async (req, res, next) => {
+  const authToken = req.headers.authorization;
+  if (authToken !== token || !isLoggedIn) {
+    res.status(401).send({ error: 'Unauthorized' });
+    return;
+  }
+  try {
+    const { asset } = req.params;
+    const raw = await investments.find({ asset });
+    const records = buildAssetsResponse(raw);
+    if (records) {
+      res.status(200).json({ ...records.total, asset, message: 'success' });
+    }
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+});
+
+const buildAssetsResponse = (data) => {
+  let [array, expenses] = buildGenericResponse(data, true);
+  let total = {};
+  expenses.forEach((expense) => {
+    let current = isNaN(parseFloat(total[expense.currency]))
+      ? 0
+      : parseFloat(total[expense.currency]);
+    current += parseFloat(expense.value);
+    total[expense.currency] = current;
+  });
+  console.log(total);
+  return { records: array, total };
+};
+
+const buildGenericResponse = (data, buildExpenses) => {
+  let array = [];
+  let expenses = [];
+  Object.keys(data).forEach((key) => {
+    array.push({
+      date: data[key].date,
+      formattedDate: data[key].formattedDate,
+      spendingDetails: data[key].spendingDetails,
+      asset: data[key].asset,
+      assetDetails: data[key].assetDetails,
+    });
+    if (buildExpenses) {
+      expenses.push(...data[key].spendingDetails);
+    }
+  });
+
+  return [array, expenses];
+};
+
+const buildAllData = (data) => {
+  const [records] = buildGenericResponse(data);
+  const { total, assets } = getExpensesFromAllData(records);
+  return { records, expenses: total, assets };
+};
+
+const getExpensesFromAllData = (data) => {
+  const uniqueAssets = [...new Set(data.map((item) => item.asset))];
+  const total = {};
+  uniqueAssets.forEach((asset) => {
+    let expenses = [];
+    let assetName = asset.toLowerCase();
+    data.forEach((data) => {
+      if (data.asset === asset) {
+        expenses.push(...data.spendingDetails);
+      }
+    });
+    expenses.forEach((expense) => {
+      if (!total[assetName]) {
+        total[assetName] = {};
+      }
+      let current = isNaN(parseFloat(total[assetName][expense.currency]))
+        ? 0
+        : parseFloat(total[assetName][expense.currency]);
+      current += parseFloat(expense.value);
+      total[assetName][expense.currency] = current;
+    });
+  });
+  return { total, assets: uniqueAssets };
+};
 
 app.use((error, req, res, next) => {
   if (error.status) {
