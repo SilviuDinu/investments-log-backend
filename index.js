@@ -5,6 +5,7 @@ const cors = require('cors');
 const monk = require('monk');
 const bodyParser = require('body-parser');
 const { nanoid } = require('nanoid');
+const assets = require('./assets');
 
 const app = express();
 
@@ -111,6 +112,21 @@ app.get('/records', async (req, res, next) => {
     const [records, expenses] = buildAllData(raw);
     if (records) {
       res.status(200).json({ records, expenses, message: 'success' });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/assets', (req, res, next) => {
+  const authToken = req.headers.authorization;
+  if (authToken !== token || !isLoggedIn) {
+    res.status(401).send({ error: 'Unauthorized' });
+    return;
+  }
+  try {
+    if (assets) {
+      res.json(assets);
     }
   } catch (error) {
     next(error);
