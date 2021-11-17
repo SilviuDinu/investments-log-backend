@@ -208,6 +208,28 @@ app.get('/expenses/:asset', async (req, res, next) => {
   }
 });
 
+app.delete('/delete/:id', async (req, res, next) => {
+  const authToken = req.headers.authorization;
+  if (authToken !== token || !isLoggedIn) {
+    res.status(401).send({ error: 'Unauthorized' });
+    return;
+  }
+  let { id: _id } = req.params;
+  try {
+    if (!_id) {
+      next({ message: 'No id provided 😞.' });
+      return;
+    }
+    const removed = await investments.remove({ _id });
+    res.json({
+      _id,
+      deleted: removed.deletedCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 const buildAssetsResponse = (data) => {
   let [array, expenses] = buildGenericResponse(data, true);
   let total = {};
@@ -215,8 +237,8 @@ const buildAssetsResponse = (data) => {
     let current = isNaN(parseFloat(total[expense.currency]))
       ? 0
       : parseFloat(total[expense.currency]);
-    current += parseFloat(expense.value).toFixed(2);
-    total[expense.currency] = current;
+    current += parseFloat(expense.value);
+    total[expense.currency] = current.toFixed(2);
   });
   console.log(total);
   return { records: array, total };
@@ -227,6 +249,7 @@ const buildGenericResponse = (data, buildExpenses) => {
   let expenses = [];
   Object.keys(data).forEach((key) => {
     array.push({
+      _id: data[key]._id,
       date: data[key].date,
       formattedDate: data[key].formattedDate,
       spendingDetails: data[key].spendingDetails,
@@ -265,8 +288,8 @@ const getExpensesFromAllData = (data) => {
       let current = isNaN(parseFloat(total[assetName][expense.currency]))
         ? 0
         : parseFloat(total[assetName][expense.currency]);
-      current += parseFloat(expense.value).toFixed(2);
-      total[assetName][expense.currency] = current;
+      current += parseFloat(expense.value);
+      total[assetName][expense.currency] = current.toFixed(2);
     });
   });
   return { total, assets: uniqueAssets };
