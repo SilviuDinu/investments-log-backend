@@ -215,7 +215,7 @@ const buildAssetsResponse = (data) => {
     let current = isNaN(parseFloat(total[expense.currency]))
       ? 0
       : parseFloat(total[expense.currency]);
-    current += parseFloat(expense.value);
+    current += parseFloat(expense.value).toFixed(2);
     total[expense.currency] = current;
   });
   console.log(total);
@@ -265,7 +265,7 @@ const getExpensesFromAllData = (data) => {
       let current = isNaN(parseFloat(total[assetName][expense.currency]))
         ? 0
         : parseFloat(total[assetName][expense.currency]);
-      current += parseFloat(expense.value);
+      current += parseFloat(expense.value).toFixed(2);
       total[assetName][expense.currency] = current;
     });
   });
